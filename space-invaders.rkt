@@ -9,6 +9,9 @@
 
 (define my-ship (player (/ WIDTH 2) (* HEIGHT .9)))
 
+(define left-pressed #f)
+(define right-pressed #f)
+
 (define (draw-ship x y)
   (triangle (+ x 30) y
             x (- y 30)
@@ -21,12 +24,23 @@
   (no-stroke)
   )
 
+(define (pressed-func is-set?)
+  (when (equal? key 'right)
+    (set! right-pressed is-set?))
+  (when (equal? key 'left)
+    (set! left-pressed is-set?)))
+
+(define (on-key-pressed)
+  (pressed-func #t))
+
+(define (on-key-released)
+  (pressed-func #f))
 
 (define (draw)
   ;; controls
-  (when (and key-pressed (equal? key 'right))
+  (when right-pressed
     (+= my-ship.x 6))
-  (when (and key-pressed (equal? key 'left))
+  (when left-pressed
     (-= my-ship.x 6))
 
   ;; draw
