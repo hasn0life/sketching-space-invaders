@@ -2,6 +2,7 @@
 
 (define WIDTH 800)
 (define HEIGHT 600)
+(define SHIP-SIZE 30)
 
 (define bg-color (color 25 25 112))
 
@@ -13,9 +14,9 @@
 (define right-pressed #f)
 
 (define (draw-ship x y)
-  (triangle (+ x 30) y
-            x (- y 30)
-            (- x 30) y ))
+  (triangle (+ x SHIP-SIZE) y
+            x (- y SHIP-SIZE)
+            (- x SHIP-SIZE) y ))
 
 (define (setup)
   (size WIDTH HEIGHT)
