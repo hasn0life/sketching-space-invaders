@@ -38,11 +38,14 @@
   (pressed-func #f))
 
 (define (draw)
+  
   ;; controls
   (when right-pressed
-    (+= my-ship.x 6))
+    (when (< (+ my-ship.x SHIP-SIZE) WIDTH)
+      (+= my-ship.x 6)))
   (when left-pressed
-    (-= my-ship.x 6))
+    (when (> (- my-ship.x SHIP-SIZE) 0)
+      (-= my-ship.x 6)))
 
   ;; draw
   (background bg-color)
