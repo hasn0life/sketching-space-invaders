@@ -18,6 +18,11 @@
             x (- y SHIP-SIZE)
             (- x SHIP-SIZE) y ))
 
+(define (draw-invader x y)
+  (ellipse-mode 'center)
+  (fill "gray")
+  (ellipse x y 60 20))
+
 (define (setup)
   (size WIDTH HEIGHT)
   (background bg-color)
@@ -50,5 +55,6 @@
   ;; draw
   (background bg-color)
   (draw-ship my-ship.x my-ship.y)
+  (draw-invader (/ WIDTH 2) (/ HEIGHT 2))
   ;(text (~a " Frame-rate: " frame-rate) 40 50)
   )
