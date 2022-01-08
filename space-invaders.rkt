@@ -3,7 +3,7 @@
 (define WIDTH 800)
 (define HEIGHT 600)
 (define SHIP-SIZE 30)
-(define INVADER-SIZE 60)
+(define INVADER-SIZE 40)
 (define LASER-SPEED 200)
 (define LASER-SIZE 20)
 (define LASER-T-LIM .5)
@@ -22,7 +22,7 @@
   (define v-dist (* 2 INVADER-SIZE ))
   (for*/list ([r (in-range row)]
               [c (in-range col)])
-    (invader (* c-dist (add1 c)) (* (/ v-dist 2) (add1 r)) )))
+    (invader (* c-dist (add1 c)) (* .75 v-dist (add1 r)) )))
 
 (define invaders-list (setup-invasion 4 8))
 
@@ -30,6 +30,10 @@
 (define right-pressed #f)
 (define shoot-pressed #f)
 
+(define prev-millis 0)
+(define laser-timer LASER-T-LIM)
+
+;; drawing functions
 (define (draw-ship x y)
   (fill "gray")
   (triangle (+ x SHIP-SIZE) y
@@ -44,18 +48,9 @@
 (define (draw-invader x y)
   (ellipse-mode 'center)
   (fill "gray")
-  (ellipse x y INVADER-SIZE (/ INVADER-SIZE 2)))
+  (ellipse x y INVADER-SIZE INVADER-SIZE))
 
-(define prev-millis 0)
-(define laser-timer LASER-T-LIM)
-  
-(define (setup)
-  (size WIDTH HEIGHT)
-  (background bg-color)
-  (set-frame-rate! 30)
-  (no-stroke)
-  )
-
+;; keyboard functions
 (define (pressed-func is-set?)
   (when (equal? key 'right)
     (set! right-pressed is-set?))
@@ -70,6 +65,23 @@
 (define (on-key-released)
   (pressed-func #f))
 
+;; physics functions
+
+;;circle circle collision
+(define (hit? x1 y1 x2 y2 dist)
+  (<= (sqrt (+ (sqr (- x1 x2))
+               (sqr (- y1 y2))))
+      dist))
+  
+
+;; setup
+(define (setup)
+  (size WIDTH HEIGHT)
+  (background bg-color)
+  (set-frame-rate! 30)
+  (no-stroke)
+  )
+
 
 ;; main function
 (define (draw)
@@ -77,6 +89,7 @@
   (define current-millis (millis))
   (define dt (/ (- current-millis prev-millis) 1000.0))
   (set! prev-millis current-millis)
+  
   (+= laser-timer dt)
   
   ;; controls
@@ -92,12 +105,21 @@
       (:= player-lasers
           (cons (laser my-ship.x (- my-ship.y SHIP-SIZE))  player-lasers))))
 
-  ;;physics
+  ;; physics
   (for ([i (in-list player-lasers)])
     (-= i.y (* LASER-SPEED dt))
     (when (< i.y 0)
+      (when (< (length player-lasers) 3)
+        (:= player-lasers (remove i player-lasers)))))
+
+  (for* ([i (in-list player-lasers)]
+        [j (in-list invaders-list)])
+    ;; hit distance is the radius of both the laser and the ship added together
+    (when (hit? i.x i.y j.x j.y
+                (+ (/ LASER-SIZE 4) (/ INVADER-SIZE 2)))
+      (:= invaders-list (remove j invaders-list))
       (:= player-lasers (remove i player-lasers))))
-     
+  
   ;; draw
   (background bg-color)
   (draw-ship my-ship.x my-ship.y)
@@ -105,5 +127,7 @@
       (draw-invader i.x i.y))
   (for ([i (in-list player-lasers)])
       (draw-laser i.x i.y))
-  ;(text (~a " Frame-rate: " frame-rate) 40 50)
+  
+  (fill "orange")
+  (text (~a " Frame-rate: " frame-rate) 40 50)
   )
