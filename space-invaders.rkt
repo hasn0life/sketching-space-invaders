@@ -4,13 +4,18 @@
 (define HEIGHT 600)
 (define SHIP-SIZE 30)
 (define INVADER-SIZE 60)
+(define LASER-SPEED 200)
+(define LASER-SIZE 20)
+(define LASER-T-LIM .5)
 
 (define bg-color (color 25 25 112))
 
 (struct player (x y))
 (struct invader (x y))
+(struct laser (x y))
 
 (define my-ship (player (/ WIDTH 2) (* HEIGHT .9)))
+(define player-lasers '())
 
 (define (setup-invasion row col)
   (define c-dist (round (/ WIDTH (+ 2 col))))
@@ -23,17 +28,27 @@
 
 (define left-pressed #f)
 (define right-pressed #f)
+(define shoot-pressed #f)
 
 (define (draw-ship x y)
+  (fill "gray")
   (triangle (+ x SHIP-SIZE) y
             x (- y SHIP-SIZE)
             (- x SHIP-SIZE) y ))
+
+(define (draw-laser x y)
+  (ellipse-mode 'center)
+  (fill "orange")
+  (ellipse x y (/ LASER-SIZE 2) LASER-SIZE))
 
 (define (draw-invader x y)
   (ellipse-mode 'center)
   (fill "gray")
   (ellipse x y INVADER-SIZE (/ INVADER-SIZE 2)))
 
+(define prev-millis 0)
+(define laser-timer LASER-T-LIM)
+  
 (define (setup)
   (size WIDTH HEIGHT)
   (background bg-color)
@@ -45,7 +60,9 @@
   (when (equal? key 'right)
     (set! right-pressed is-set?))
   (when (equal? key 'left)
-    (set! left-pressed is-set?)))
+    (set! left-pressed is-set?))
+  (when (equal? key #\space)
+    (set! shoot-pressed is-set?)))
 
 (define (on-key-pressed)
   (pressed-func #t))
@@ -53,7 +70,14 @@
 (define (on-key-released)
   (pressed-func #f))
 
+
+;; main function
 (define (draw)
+  
+  (define current-millis (millis))
+  (define dt (/ (- current-millis prev-millis) 1000.0))
+  (set! prev-millis current-millis)
+  (+= laser-timer dt)
   
   ;; controls
   (when right-pressed
@@ -62,12 +86,24 @@
   (when left-pressed
     (when (> (- my-ship.x SHIP-SIZE) 0)
       (-= my-ship.x 6)))
-    
+  (when shoot-pressed
+    (when (> laser-timer LASER-T-LIM)
+      (:= laser-timer 0)
+      (:= player-lasers
+          (cons (laser my-ship.x (- my-ship.y SHIP-SIZE))  player-lasers))))
 
+  ;;physics
+  (for ([i (in-list player-lasers)])
+    (-= i.y (* LASER-SPEED dt))
+    (when (< i.y 0)
+      (:= player-lasers (remove i player-lasers))))
+     
   ;; draw
   (background bg-color)
   (draw-ship my-ship.x my-ship.y)
   (for ([i (in-list invaders-list)])
       (draw-invader i.x i.y))
+  (for ([i (in-list player-lasers)])
+      (draw-laser i.x i.y))
   ;(text (~a " Frame-rate: " frame-rate) 40 50)
   )
