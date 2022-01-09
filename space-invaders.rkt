@@ -14,8 +14,10 @@
 (struct invader (x y))
 (struct laser (x y))
 
-(define my-ship (player (/ WIDTH 2) (* HEIGHT .9)))
+(define my-ship '())
 (define player-lasers '())
+(define invader-lasers '())
+(define invaders-list '())
 
 (define (setup-invasion row col)
   (define c-dist (round (/ WIDTH (+ 2 col))))
@@ -24,7 +26,11 @@
               [c (in-range col)])
     (invader (* c-dist (add1 c)) (* .75 v-dist (add1 r)) )))
 
-(define invaders-list (setup-invasion 4 8))
+(define (reset)
+  (:= my-ship (player (/ WIDTH 2) (* HEIGHT .9)))
+  (:= player-lasers '())
+  (:= invader-lasers '())
+  (:= invaders-list (setup-invasion 4 8)))
 
 (define left-pressed #f)
 (define right-pressed #f)
@@ -38,11 +44,16 @@
   (fill "gray")
   (triangle (+ x SHIP-SIZE) y
             x (- y SHIP-SIZE)
-            (- x SHIP-SIZE) y ))
+            (- x SHIP-SIZE) y )
+  (fill "teal")
+  (circle x (- y (/ SHIP-SIZE 2)) SHIP-SIZE )
+  (fill "gray")
+  (ellipse x (- y (/ SHIP-SIZE 2)) (/ SHIP-SIZE 2) (* 2 SHIP-SIZE))
+  )
 
-(define (draw-laser x y)
+(define (draw-laser x y color)
   (ellipse-mode 'center)
-  (fill "orange")
+  (fill color)
   (ellipse x y (/ LASER-SIZE 2) LASER-SIZE))
 
 (define (draw-invader x y)
@@ -67,19 +78,19 @@
 
 ;; physics functions
 
-;;circle circle collision
+;; circle circle collision
 (define (hit? x1 y1 x2 y2 dist)
   (<= (sqrt (+ (sqr (- x1 x2))
                (sqr (- y1 y2))))
       dist))
   
-
 ;; setup
 (define (setup)
   (size WIDTH HEIGHT)
   (background bg-color)
   (set-frame-rate! 30)
   (no-stroke)
+  (reset)
   )
 
 
@@ -91,7 +102,7 @@
   (set! prev-millis current-millis)
   
   (+= laser-timer dt)
-  
+
   ;; controls
   (when right-pressed
     (when (< (+ my-ship.x SHIP-SIZE) WIDTH)
@@ -102,16 +113,27 @@
   (when shoot-pressed
     (when (> laser-timer LASER-T-LIM)
       (:= laser-timer 0)
-      (:= player-lasers
-          (cons (laser my-ship.x (- my-ship.y SHIP-SIZE))  player-lasers))))
+      (when (< (length player-lasers) 3)
+        (:= player-lasers
+            (cons (laser my-ship.x (- my-ship.y SHIP-SIZE))  player-lasers)))))
 
+  ;; ai
+  (for ([i (in-list invaders-list)])
+    (when (< (random) .01)
+      (:= invader-lasers (cons (laser i.x i.y) invader-lasers))))
+    
   ;; physics
   (for ([i (in-list player-lasers)])
     (-= i.y (* LASER-SPEED dt))
     (when (< i.y 0)
-      (when (< (length player-lasers) 3)
-        (:= player-lasers (remove i player-lasers)))))
+      (:= player-lasers (remove i player-lasers))))
 
+  (for ([i (in-list invader-lasers)])
+    (+= i.y (* LASER-SPEED dt))
+    (when (> i.y HEIGHT)
+      (:= invader-lasers (remove i invader-lasers))))
+
+  ;; player laser vs invaders
   (for* ([i (in-list player-lasers)]
         [j (in-list invaders-list)])
     ;; hit distance is the radius of both the laser and the ship added together
@@ -119,6 +141,28 @@
                 (+ (/ LASER-SIZE 4) (/ INVADER-SIZE 2)))
       (:= invaders-list (remove j invaders-list))
       (:= player-lasers (remove i player-lasers))))
+
+  ;; win condition
+  (when (= 0 (length invaders-list))
+    (println "You WIN!!!!")
+      (reset))
+  
+  ;; laser vs laser collisions
+   (for* ([i (in-list player-lasers)]
+        [j (in-list invader-lasers)])
+     (when (hit? i.x i.y j.x j.y (/ LASER-SIZE 2))
+       (:= player-lasers (remove i player-lasers))
+       (:= invader-lasers (remove j invader-lasers))))
+
+  ;; enemy laser vs ship collisions
+  ;; ships weak spot is the green circle in the middle
+  (for ([i (in-list invader-lasers)])
+    (when (hit? i.x i.y
+                my-ship.x
+                (- my-ship.y (/ SHIP-SIZE 2))
+                (+ (/ LASER-SIZE 2) (/ SHIP-SIZE 2)))
+      (println "You lose!")
+      (reset)))
   
   ;; draw
   (background bg-color)
@@ -126,7 +170,9 @@
   (for ([i (in-list invaders-list)])
       (draw-invader i.x i.y))
   (for ([i (in-list player-lasers)])
-      (draw-laser i.x i.y))
+      (draw-laser i.x i.y "orange"))
+    (for ([i (in-list invader-lasers)])
+      (draw-laser i.x i.y "Yellow"))
   
   (fill "orange")
   (text (~a " Frame-rate: " frame-rate) 40 50)
