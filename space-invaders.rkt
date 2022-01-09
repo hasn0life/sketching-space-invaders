@@ -4,7 +4,7 @@
 (define HEIGHT 600)
 (define SHIP-SIZE 30)
 (define INVADER-SIZE 40)
-(define LASER-SPEED 200)
+(define LASER-SPEED 250)
 (define LASER-SIZE 20)
 (define LASER-T-LIM .5)
 
@@ -18,6 +18,8 @@
 (define player-lasers '())
 (define invader-lasers '())
 (define invaders-list '())
+(define going-down 0)
+(define invader-speed 0)
 
 (define (setup-invasion row col)
   (define c-dist (round (/ WIDTH (+ 2 col))))
@@ -30,7 +32,10 @@
   (:= my-ship (player (/ WIDTH 2) (* HEIGHT .9)))
   (:= player-lasers '())
   (:= invader-lasers '())
-  (:= invaders-list (setup-invasion 4 8)))
+  (:= invaders-list (setup-invasion 4 8))
+  (:= going-down 0)
+  (:= invader-speed 10)
+  )
 
 (define left-pressed #f)
 (define right-pressed #f)
@@ -118,11 +123,34 @@
             (cons (laser my-ship.x (- my-ship.y SHIP-SIZE))  player-lasers)))))
 
   ;; ai
+  ;; fire laser?
   (for ([i (in-list invaders-list)])
     (when (< (random) .01)
       (:= invader-lasers (cons (laser i.x i.y) invader-lasers))))
-    
-  ;; physics
+  
+  ;; check for side wall
+  (for ([i (in-list invaders-list)])
+    (when (<= going-down 0)
+      ;; only check if we're coming to the wall to avoid retriggereing
+      (when (or (and (< i.x INVADER-SIZE) (< invader-speed 0)) 
+                (and (> i.x (- WIDTH INVADER-SIZE)) (> invader-speed 0)))
+        (:= going-down (/ INVADER-SIZE 2))
+        (:= invader-speed (- invader-speed))
+        (if (< invader-speed 0)
+            (-= invader-speed 5)
+            (+= invader-speed 5)))))
+  
+    ;; physics
+
+  (for ([i (in-list invaders-list)])
+    (cond
+      ([> going-down 0]
+       (+= i.y (* (abs invader-speed) dt)))
+      (else
+       (+= i.x (* invader-speed dt)))))
+  (-= going-down (* (abs invader-speed) dt))
+  (when (< going-down 0) (:= going-down 0))
+  
   (for ([i (in-list player-lasers)])
     (-= i.y (* LASER-SPEED dt))
     (when (< i.y 0)
