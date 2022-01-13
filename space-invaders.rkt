@@ -4,7 +4,7 @@
 (define HEIGHT 600)
 (define SHIP-SIZE 30)
 (define INVADER-SIZE 40)
-(define LASER-SPEED 250)
+(define LASER-SPEED 300)
 (define LASER-SIZE 20)
 (define LASER-T-LIM .5)
 
@@ -40,6 +40,8 @@
 (define left-pressed #f)
 (define right-pressed #f)
 (define shoot-pressed #f)
+(define pause-pressed #f)
+(define paused #f)
 
 (define prev-millis 0)
 (define laser-timer LASER-T-LIM)
@@ -73,7 +75,13 @@
   (when (equal? key 'left)
     (set! left-pressed is-set?))
   (when (equal? key #\space)
-    (set! shoot-pressed is-set?)))
+    (set! shoot-pressed is-set?))
+  (when (equal? key #\p)
+    ;; "one shot" key press means we check for state transition
+    ;; whivch occurs when pause-pressed is false and is being set to true
+    (when (and (not pause-pressed) is-set?)
+      (:= paused (if paused #f #t)))
+    (set! pause-pressed is-set?)))
 
 (define (on-key-pressed)
   (pressed-func #t))
@@ -105,17 +113,19 @@
   (define current-millis (millis))
   (define dt (/ (- current-millis prev-millis) 1000.0))
   (set! prev-millis current-millis)
-  
+  (when paused (:= dt 0))
   (+= laser-timer dt)
 
   ;; controls
+;   (when pause-pressed
+;     (:= paused (if paused #f #t)) )
   (when right-pressed
     (when (< (+ my-ship.x SHIP-SIZE) WIDTH)
-      (+= my-ship.x 6)))
+      (+= my-ship.x (* 80 dt))))
   (when left-pressed
     (when (> (- my-ship.x SHIP-SIZE) 0)
-      (-= my-ship.x 6)))
-  (when shoot-pressed
+      (-= my-ship.x (* 80 dt))))
+  (when (and shoot-pressed (not paused))
     (when (> laser-timer LASER-T-LIM)
       (:= laser-timer 0)
       (when (< (length player-lasers) 3)
@@ -124,9 +134,11 @@
 
   ;; ai
   ;; fire laser?
-  (for ([i (in-list invaders-list)])
-    (when (< (random) .01)
-      (:= invader-lasers (cons (laser i.x i.y) invader-lasers))))
+  (when (not paused)
+    (for ([i (in-list invaders-list)])
+      (when (< (random) .01)
+        (:= invader-lasers (cons (laser i.x i.y) invader-lasers))))
+    )
   
   ;; check for side wall
   (for ([i (in-list invaders-list)])
@@ -201,7 +213,14 @@
       (draw-laser i.x i.y "orange"))
     (for ([i (in-list invader-lasers)])
       (draw-laser i.x i.y "Yellow"))
+  (when paused
+    (text-size 40)
+    (text-align 'center 'center)
+    (fill "orange")
+    (text "PAUSED" (/ WIDTH 2) (/ HEIGHT 2)))
   
   (fill "orange")
+  (text-align 'left 'top)
+  (text-size 14)
   (text (~a " Frame-rate: " frame-rate) 40 50)
   )
