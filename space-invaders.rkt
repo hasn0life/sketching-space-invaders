@@ -131,8 +131,9 @@
 ;; setup
 (define (setup)
   (size WIDTH HEIGHT)
+  ;(collect-garbage 'incremental)
   (background bg-color)
-  (set-frame-rate! 30)
+  (set-frame-rate! 60)
   (no-stroke)
   (reset 0)
   )
@@ -148,8 +149,6 @@
   (+= laser-timer dt)
 
   ;; controls
-;   (when pause-pressed
-;     (:= paused (if paused #f #t)) )
   (when right-pressed
     (when (< (+ my-ship.x SHIP-SIZE) WIDTH)
       (+= my-ship.x (* 100 dt))))
@@ -171,12 +170,11 @@
         ;; make sure its at the bottom
         ;; theres more efficient ways of doing this like keeping a list of
         ;; enemies at the bottom that changes as we kill them?
-        (when (= 0 (length
-               (filter (lambda (invader)
-                         (and (> (add1 invader.x) i.x)
+        (when (not (ormap (lambda (invader)
+                          (and (> (add1 invader.x) i.x)
                               (< (sub1 invader.x) i.x)
                               (> invader.y i.y)))
-                  invaders-list)))
+                  invaders-list))
         (:= invader-lasers (cons (laser i.x i.y) invader-lasers)))))
     )
   
