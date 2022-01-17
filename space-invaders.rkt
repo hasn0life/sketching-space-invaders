@@ -13,11 +13,13 @@
 (struct player (x y))
 (struct invader (x y points))
 (struct laser (x y))
+(struct explosion (x y frame))
 
 (define my-ship '())
 (define player-lasers '())
 (define invader-lasers '())
 (define invaders-list '())
+(define explosion-list '())
 (define going-down 0)
 (define invader-speed 0)
 (define points 0)
@@ -35,6 +37,7 @@
   (:= my-ship (player (/ WIDTH 2) (* HEIGHT .9)))
   (:= player-lasers '())
   (:= invader-lasers '())
+  (:= explosion-list '())
   (:= invaders-list (setup-invasion 4 8 stage))
   (:= going-down 0)
   
@@ -78,6 +81,23 @@
   (ellipse-mode 'center)
   (fill "gray")
   (ellipse x y INVADER-SIZE INVADER-SIZE))
+
+(define (draw-explosion x y size)
+  (fill "gray")
+  (triangle (+ x (* (random 4) size)) (+ y (* (random 4) size))
+            (- x (* (random 5) size)) (+ y (* (random 3) size))
+            (+ x (* (random 2) size)) (- y (* (random 5) size)))
+  (triangle (+ x (* (random 3) size)) (+ y (* (random 5) size))
+            (- x (* (random 2) size)) (+ y (* (random 0) size))
+            (+ x (* (random 4) size)) (- y (* (random 3) size)))
+  (fill "orange")
+  (triangle (+ x (* (random 2) size)) (+ y (* (random 2) size))
+            (- x (* (random 1) size)) (+ y (* (random 4) size))
+            (+ x (* (random 3) size)) (- y (* (random 0) size)))
+  (triangle (+ x (* (random 3) size)) (+ y (* (random 3) size))
+            (- x (* (random 3) size)) (+ y (* (random 0) size))
+            (+ x (* (random 1) size)) (- y (* (random 2) size)))
+  )
 
 ;; keyboard functions
 (define (pressed-func is-set?)
@@ -201,6 +221,7 @@
     (when (hit? i.x i.y j.x j.y
                 (+ (/ LASER-SIZE 4) (/ INVADER-SIZE 2)))
       (+= points j.points)
+      (:= explosion-list (cons (explosion j.x j.y 0) explosion-list))
       (:= invaders-list (remove j invaders-list))
       (:= player-lasers (remove i player-lasers))))
 
@@ -225,6 +246,12 @@
                 (+ (/ LASER-SIZE 2) (/ SHIP-SIZE 2)))
       (println "You lose!")
       (reset 0)))
+
+  ;; explosion animation/timing
+  (for ([i (in-list explosion-list)])
+    (+= i.frame 1)
+    (when (> i.frame 10) 
+      (:= explosion-list (remove i explosion-list))))
   
   ;; draw
   (background bg-color)
@@ -235,7 +262,9 @@
       (draw-laser i.x i.y "orange"))
     (for ([i (in-list invader-lasers)])
       (draw-laser i.x i.y "Yellow"))
-
+  (for ([i (in-list explosion-list)])
+      (draw-explosion i.x i.y i.frame))
+  
   (fill "orange")
   (text-align 'center 'top)
   (text-size 14)
