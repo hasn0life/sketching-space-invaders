@@ -11,7 +11,7 @@
 (define bg-color (color 25 25 112))
 
 (struct player (x y))
-(struct invader (x y))
+(struct invader (x y points))
 (struct laser (x y))
 
 (define my-ship '())
@@ -20,21 +20,32 @@
 (define invaders-list '())
 (define going-down 0)
 (define invader-speed 0)
+(define points 0)
+(define current-stage 0) 
 
-(define (setup-invasion row col)
+(define (setup-invasion row col stage)
   (define c-dist (round (/ WIDTH (+ 2 col))))
   (define v-dist (* 2 INVADER-SIZE ))
   (for*/list ([r (in-range row)]
               [c (in-range col)])
-    (invader (* c-dist (add1 c)) (* .75 v-dist (add1 r)) )))
+    (invader (* c-dist .9 (add1 c)) (* .75 v-dist (add1 r))
+             (- (* row (add1 stage) 5) (* r 5 (add1 stage))))))
 
-(define (reset)
+(define (reset stage)
   (:= my-ship (player (/ WIDTH 2) (* HEIGHT .9)))
   (:= player-lasers '())
   (:= invader-lasers '())
-  (:= invaders-list (setup-invasion 4 8))
+  (:= invaders-list (setup-invasion 4 8 stage))
   (:= going-down 0)
-  (:= invader-speed 10)
+  
+  (cond
+    [(= stage 0)
+     (:= points 0)
+     (:= invader-speed 15)
+     (:= current-stage 0)]
+    [else
+     (:= invader-speed (* 15 (add1 stage)))
+     (:= current-stage stage)])
   )
 
 (define left-pressed #f)
@@ -103,7 +114,7 @@
   (background bg-color)
   (set-frame-rate! 30)
   (no-stroke)
-  (reset)
+  (reset 0)
   )
 
 
@@ -121,10 +132,10 @@
 ;     (:= paused (if paused #f #t)) )
   (when right-pressed
     (when (< (+ my-ship.x SHIP-SIZE) WIDTH)
-      (+= my-ship.x (* 80 dt))))
+      (+= my-ship.x (* 100 dt))))
   (when left-pressed
     (when (> (- my-ship.x SHIP-SIZE) 0)
-      (-= my-ship.x (* 80 dt))))
+      (-= my-ship.x (* 100 dt))))
   (when (and shoot-pressed (not paused))
     (when (> laser-timer LASER-T-LIM)
       (:= laser-timer 0)
@@ -136,8 +147,17 @@
   ;; fire laser?
   (when (not paused)
     (for ([i (in-list invaders-list)])
-      (when (< (random) .01)
-        (:= invader-lasers (cons (laser i.x i.y) invader-lasers))))
+      (when (< (random) .02)
+        ;; make sure its at the bottom
+        ;; theres more efficient ways of doing this like keeping a list of
+        ;; enemies at the bottom that changes as we kill them?
+        (when (= 0 (length
+               (filter (lambda (invader)
+                         (and (> (add1 invader.x) i.x)
+                              (< (sub1 invader.x) i.x)
+                              (> invader.y i.y)))
+                  invaders-list)))
+        (:= invader-lasers (cons (laser i.x i.y) invader-lasers)))))
     )
   
   ;; check for side wall
@@ -148,6 +168,7 @@
                 (and (> i.x (- WIDTH INVADER-SIZE)) (> invader-speed 0)))
         (:= going-down (/ INVADER-SIZE 2))
         (:= invader-speed (- invader-speed))
+        ;; increment in the absolute value sense
         (if (< invader-speed 0)
             (-= invader-speed 5)
             (+= invader-speed 5)))))
@@ -179,13 +200,14 @@
     ;; hit distance is the radius of both the laser and the ship added together
     (when (hit? i.x i.y j.x j.y
                 (+ (/ LASER-SIZE 4) (/ INVADER-SIZE 2)))
+      (+= points j.points)
       (:= invaders-list (remove j invaders-list))
       (:= player-lasers (remove i player-lasers))))
 
   ;; win condition
   (when (= 0 (length invaders-list))
     (println "You WIN!!!!")
-      (reset))
+      (reset (add1 current-stage)))
   
   ;; laser vs laser collisions
    (for* ([i (in-list player-lasers)]
@@ -202,7 +224,7 @@
                 (- my-ship.y (/ SHIP-SIZE 2))
                 (+ (/ LASER-SIZE 2) (/ SHIP-SIZE 2)))
       (println "You lose!")
-      (reset)))
+      (reset 0)))
   
   ;; draw
   (background bg-color)
@@ -213,6 +235,12 @@
       (draw-laser i.x i.y "orange"))
     (for ([i (in-list invader-lasers)])
       (draw-laser i.x i.y "Yellow"))
+
+  (fill "orange")
+  (text-align 'center 'top)
+  (text-size 14)
+  (text (~a "STAGE: " current-stage " SCORE: " points) (/ WIDTH 2) 10)
+  
   (when paused
     (text-size 40)
     (text-align 'center 'center)
@@ -222,5 +250,5 @@
   (fill "orange")
   (text-align 'left 'top)
   (text-size 14)
-  (text (~a " Frame-rate: " frame-rate) 40 50)
+  (text (~a " Frame-rate: " frame-rate) 40 10)
   )
